@@ -66,6 +66,10 @@ Icons are from [Lucide](https://lucide.dev) (ISC, see
 its shipped `changes`, `files`, `new-menu`, `menu`, `picker` and `worktree`
 mods.
 
+## Author
+
+Made by [Keyur Amin](https://github.com/keyuramins) ([keyuramin.com](https://keyuramin.com)).
+
 ## License
 
 MIT
