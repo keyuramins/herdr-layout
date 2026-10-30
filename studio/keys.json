@@ -1,0 +1,8 @@
+{
+  "layout:studio": {
+    "cmd-j": "studio.terminal",
+    "ctrl-shift-j": "studio.terminal",
+    "cmd-shift-r": "studio.review",
+    "ctrl-shift-r": "studio.review"
+  }
+}

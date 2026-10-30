@@ -1,0 +1,114 @@
+{
+  "id": "root",
+  "type": "row",
+  "titlebar": "none",
+  "traffic_lights": [18, 18],
+  "theme": { "light": "studio-light", "dark": "studio-dark" },
+  "preview": "layouts/studio.png",
+  "background": "background",
+  "terminal_padding": [28, 14],
+  "resizable": true,
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "size": { "px": 300 },
+      "min": 220,
+      "max": 440,
+      "background": "chrome",
+      "resizable": false,
+      "children": [
+        {
+          "id": "side-top",
+          "type": "block",
+          "size": { "px": 52 },
+          "window_drag": true,
+          "content": { "mod": "studio", "props": { "part": "side-top" } }
+        },
+        {
+          "id": "side",
+          "type": "block",
+          "content": { "mod": "studio", "props": { "part": "sidebar" } }
+        }
+      ]
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "background": "background",
+      "resizable": false,
+      "children": [
+        {
+          "id": "head",
+          "type": "block",
+          "size": { "px": 52 },
+          "window_drag": true,
+          "content": { "mod": "studio", "props": { "part": "header" } }
+        },
+        {
+          "id": "body",
+          "type": "row",
+          "divider": { "width": 1, "color": "border" },
+          "children": [
+            {
+              "id": "thread",
+              "type": "column",
+              "resizable": false,
+              "children": [
+                {
+                  "id": "main",
+                  "type": "block",
+                  "padding": [0, 10],
+                  "content": {
+                    "tab": "active",
+                    "pane": {
+                      "gap": 8,
+                      "radius": 10,
+                      "background": "background",
+                      "border": { "width": 1, "color": "border" },
+                      "focus": { "width": 1, "color": "input" },
+                      "lone": false
+                    }
+                  }
+                },
+                {
+                  "id": "composer",
+                  "type": "block",
+                  "size": { "px": 150 },
+                  "content": { "mod": "studio", "props": { "part": "composer" } }
+                }
+              ]
+            },
+            {
+              "id": "review",
+              "type": "column",
+              "hidden": true,
+              "size": { "px": 540 },
+              "min": 340,
+              "max": 1100,
+              "background": "background",
+              "resizable": false,
+              "children": [
+                {
+                  "id": "review-head",
+                  "type": "block",
+                  "size": { "px": 44 },
+                  "content": { "mod": "studio", "props": { "part": "review-head" } }
+                },
+                {
+                  "id": "review-body",
+                  "type": "stack",
+                  "active": "changes",
+                  "children": [
+                    { "id": "changes", "type": "block", "content": { "mod": "changes" } },
+                    { "id": "files", "type": "block", "content": { "mod": "files" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
