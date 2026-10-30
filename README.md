@@ -20,6 +20,9 @@ panel. Light and dark themes switch from the sidebar.
 |---|---|
 | ![Studio, light](studio/docs/studio-light.png) | ![Studio with the review panel](studio/docs/studio-review-dark.png) |
 
+All three pictures are real captures from Herdr 0.1.9 on macOS. They show a
+small demo project.
+
 ### Add it
 
 Tell your agent:
