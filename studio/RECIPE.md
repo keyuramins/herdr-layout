@@ -51,8 +51,9 @@ Left to right, at zoom 1:
     `popover` background and a 1px `border` (`input` when focused). Inside:
     an input with the placeholder "Ask for follow-up changes" (14.5px), then
     a row with `+`, the agent chip (program icon and name), a status pill,
-    and a 30px round button: send (`arrow-up`, `solid` when there is text)
-    or stop (a square) while the agent works. Under the box: Local or
+    on macOS a 30px mic (`mic`, `muted`; red on a 16% tint, gently pulsing,
+    while listening), and a 30px round button: send (`arrow-up`, `solid`
+    when there is text) or stop (a square) while the agent works. Under the box: Local or
     Worktree (`laptop` or `git-fork`), a machine chip for remote threads,
     and on the right the branch (`git-branch`).
 - **Review panel** (hidden at first; 540px, 340–1100, behind a 1px `border`
@@ -108,8 +109,25 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
   `new-menu`. The agent chip runs `agent.next`. Local or Worktree opens
   Herdr's `worktree` dialog (`action: "new"`), and the branch chip opens it
   with `action: "open"`.
+- **The mic** (macOS only; hidden elsewhere, and hidden when the Mac has no
+  Swift compiler and no helper built yet):
+  - The first click builds the helper app, Studio Dictation, from
+    `dictation/main.swift` with the Mac's own `swiftc`, in the background
+    (`dictation/build.sh`, about 15 seconds). The pill says "Setting up
+    dictation…" and the mic spins. Later clicks start at once.
+  - The helper uses the Mac's built-in speech recognition (on-device where
+    supported). macOS asks once for the microphone and speech recognition,
+    in the helper's name. The pill says "Starting mic…" until it's
+    listening, then "Listening…".
+  - Words appear in the box as they're recognized, after anything already
+    typed. A pause of 2 seconds, a second click, or 60 seconds ends it;
+    10 seconds of silence at the start ends it with nothing added. Nothing is
+    sent: Enter sends, as with typing.
+  - A refused permission, a missing microphone or a failed build posts a
+    toast saying where to fix it.
 - **Keys** (`keys.json`, section `layout:studio`): `cmd-j` or `ctrl-shift-j`
-  toggles the terminal, and `cmd-shift-r` or `ctrl-shift-r` toggles review.
+  toggles the terminal, `cmd-shift-r` or `ctrl-shift-r` toggles review, and
+  `cmd-shift-m` or `ctrl-shift-m` starts or stops the mic.
   Herdr's `cmd-b` or `ctrl-shift-b` folds the sidebar, because the node is
   named `sidebar`.
 - **Refresh rates:** the diffs refresh every 6s in the sidebar and every 4s
@@ -139,8 +157,18 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     layout.
   - `open-menu` is opened as a popup by the header.
   - The code is split across `main.js` (dispatch), `sidebar.js`,
-    `header.js`, `composer.js`, `review.js` and `lib.js` (helpers, git,
-    appearance, theme install).
+    `header.js`, `composer.js`, `review.js`, `voice.js` (the mic) and
+    `lib.js` (helpers, git, appearance, theme install).
+  - `dictation/` holds the mic's helper: `main.swift` (AppKit, AVFoundation
+    and Speech: `SFSpeechRecognizer` with an `AVAudioEngine` tap),
+    `Info.plist` (an `LSUIElement` app with `NSMicrophoneUsageDescription`
+    and `NSSpeechRecognitionUsageDescription`) and `build.sh`
+    (`xcrun swiftc -swift-version 5 -O`, then an ad-hoc `codesign`). It builds
+    into `mods/studio/.build/StudioDictation.app`. Studio starts it with
+    `open -g -n <app> --args <session folder>` and they talk through files
+    there: the helper writes `status`, `partial.txt` and `final.txt`, and
+    Studio writes `stop`. `voice.js` polls them every 250 ms while a session
+    runs, and does nothing otherwise.
 - **Shipped mods it uses:** `changes`, `files`, `new-menu`, `menu`, `picker`
   and `worktree`.
 - **`herdr` calls:** `spaces`, `panes`, `agents`, `focused`, `layout`,
@@ -155,8 +183,8 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
   - `git` (`diff --numstat HEAD` and `rev-parse`).
   - `hc send` and `hc interrupt`.
   - The editors or file manager, only when you click Open.
-- **Art:** Lucide icons in `mods/studio/icons/` (ISC, stroke 1.6) and
-  `spinner.svg`. The two themes are in `mods/studio/themes/`.
+- **Art:** Lucide icons in `mods/studio/icons/` (ISC, stroke 1.6, `mic`
+  included) and `spinner.svg`. The two themes are in `mods/studio/themes/`.
 
 ## Watch out
 
@@ -175,6 +203,22 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
 - Thread titles are the tab's name when someone named it. Otherwise the
   title is the terminal's title with leading symbols stripped, and when
   there's none, "Thread n".
+- **Herdr can't open the microphone itself.** Its app bundle has no
+  microphone usage description, and macOS refuses a process whose app
+  doesn't declare one. That's why the mic goes through a separate helper
+  app, started with `open` so macOS treats it as its own app (a program run
+  directly by Herdr would count as Herdr). Herdr has no Edit menu either, so
+  macOS's own "Start Dictation…" can't be triggered from a click.
+- The helper is built on the user's Mac, not shipped as a binary, so the mic
+  needs Xcode or the Command Line Tools (`xcode-select --install`). Without
+  them, and without a helper already built, the mic stays hidden.
+- macOS ties the permissions to the helper's signature. An ad-hoc signed
+  rebuild (after `VERSION` in `voice.js` changes) may ask again.
+- One `exec` may run for 30 seconds at most, so the build starts in the
+  background (`nohup sh build.sh … &`), and the helper runs on its own
+  (`open`, not waited for). Studio polls the files instead.
+- Build output goes into a hidden `.build/` folder, because Herdr hot-reloads
+  a mod whenever a file in its folder changes, except hidden ones.
 - The composer is one line. It doesn't report a busy agent, and it can't
   attach images.
 - Open can't reach folders on other machines. The app names on macOS are
@@ -196,5 +240,8 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
 - Commit and the diff counter open the review panel on Herdr's `changes`,
   and Files switches to the tree.
 - The theme switch flips light and dark at once, and System follows the OS.
+- On macOS, the mic shows. Its first click builds Studio Dictation, and words
+  spoken then appear in the box. It stops by itself after a pause, and
+  Enter sends them. On Linux and Windows there is no mic.
 - `herdr-app check mods/studio` passes. `ctrl-shift-l` switches away and
   back.

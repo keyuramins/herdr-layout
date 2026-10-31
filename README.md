@@ -10,7 +10,8 @@ a `RECIPE.md` and a `preview.png`.
 A desktop-agent-app look for Herdr. It has a projects-and-threads sidebar
 with live status (working, awaiting approval, done) and per-thread git diffs.
 The center shows the thread's live terminal. Under it is a rounded composer
-that sends follow-ups to the agent, with Stop while it works. The header has
+that sends follow-ups to the agent, with Stop while it works, and on macOS a
+mic so you can talk to it. The header has
 Open (in your editor), Commit and a diff counter that opens the review
 panel. Light and dark themes switch from the sidebar.
 
@@ -40,6 +41,7 @@ Merge `studio/keys.json` into your keys for the shortcuts:
 |---|---|
 | `cmd-j` / `ctrl-shift-j` | Toggle the terminal |
 | `cmd-shift-r` / `ctrl-shift-r` | Toggle the review panel |
+| `cmd-shift-m` / `ctrl-shift-m` | Start or stop the mic (macOS) |
 
 The two themes ship inside the mod. On first start the mod copies them into
 `~/.config/herdr-app/themes/`, and it never overwrites a theme you edited.
@@ -56,8 +58,16 @@ These are things the mod does beyond drawing:
   switch.
 - Writes `themes/studio-light.json` and `themes/studio-dark.json` on first
   start, if they're missing.
+- **The mic (macOS, only when you click it):** the first click builds a small
+  helper app, Studio Dictation, from `mods/studio/dictation/main.swift` with
+  your Mac's Swift compiler (`xcrun swiftc`). It's built into
+  `mods/studio/.build/`. The helper uses the Mac's built-in speech
+  recognition, so macOS asks once to let it use the microphone and speech
+  recognition. Studio asks for on-device recognition. On a Mac that can't do
+  that for your language, macOS sends the audio to Apple's speech service,
+  the same as Dictation. Studio itself only reads the text.
 
-It makes no network calls.
+Studio itself makes no network calls.
 
 ## Credits
 
