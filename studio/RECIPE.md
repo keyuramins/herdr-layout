@@ -115,14 +115,19 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     `dictation/main.swift` with the Mac's own `swiftc`, in the background
     (`dictation/build.sh`, about 15 seconds). The pill says "Setting up
     dictation…" and the mic spins. Later clicks start at once.
-  - The helper uses the Mac's built-in speech recognition (on-device where
-    supported). macOS asks once for the microphone and speech recognition,
-    in the helper's name. The pill says "Starting mic…" until it's
-    listening, then "Listening…".
+  - The helper picks the newest engine the Mac has, by itself. On macOS 26
+    and later (and a macOS 26 SDK) that's `SpeechTranscriber` with
+    `SpeechAnalyzer`, on-device; its language model downloads once if it's
+    missing ("Getting speech model…"). Otherwise it uses `SFSpeechRecognizer`.
+    Both get a list of coding words as hints. macOS asks once for the
+    microphone (and speech recognition for the older engine), in the helper's
+    name. The pill says "Starting mic…" until it's listening, then
+    "Listening…".
   - Words appear in the box as they're recognized, after anything already
     typed. A pause of 2 seconds, a second click, or 60 seconds ends it;
     10 seconds of silence at the start ends it with nothing added. Nothing is
-    sent: Enter sends, as with typing.
+    sent: Enter sends, as with typing. Dictated words stay in the box: an
+    empty or shorter result from the engine never clears them.
   - A refused permission, a missing microphone or a failed build posts a
     toast saying where to fix it.
 - **Keys** (`keys.json`, section `layout:studio`): `cmd-j` or `ctrl-shift-j`
@@ -163,7 +168,10 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     and Speech: `SFSpeechRecognizer` with an `AVAudioEngine` tap),
     `Info.plist` (an `LSUIElement` app with `NSMicrophoneUsageDescription`
     and `NSSpeechRecognitionUsageDescription`) and `build.sh`
-    (`xcrun swiftc -swift-version 5 -O`, then an ad-hoc `codesign`). It builds
+    (`xcrun swiftc -swift-version 5 -O`, then an ad-hoc `codesign`). The new
+    engine's code sits behind `#if compiler(>=6.2)` and
+    `#available(macOS 26.0, *)`, so the same source builds and runs on older
+    Macs with the older engine. It builds
     into `mods/studio/.build/StudioDictation.app`. Studio starts it with
     `open -g -n <app> --args <session folder>` and they talk through files
     there: the helper writes `status`, `partial.txt` and `final.txt`, and

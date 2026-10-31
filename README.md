@@ -61,11 +61,13 @@ These are things the mod does beyond drawing:
 - **The mic (macOS, only when you click it):** the first click builds a small
   helper app, Studio Dictation, from `mods/studio/dictation/main.swift` with
   your Mac's Swift compiler (`xcrun swiftc`). It's built into
-  `mods/studio/.build/`. The helper uses the Mac's built-in speech
-  recognition, so macOS asks once to let it use the microphone and speech
-  recognition. Studio asks for on-device recognition. On a Mac that can't do
-  that for your language, macOS sends the audio to Apple's speech service,
-  the same as Dictation. Studio itself only reads the text.
+  `mods/studio/.build/`. The helper picks the newest speech engine the Mac
+  has. On macOS 26 and later that's Apple's on-device transcriber, the one
+  behind the latest Dictation; it downloads its language model once if it's
+  missing. Older Macs use Apple's older recognizer, which may send audio to
+  Apple's speech service, as Dictation does. macOS asks once for the
+  microphone (and, for the older engine, speech recognition). Studio itself
+  only reads the text.
 
 Studio itself makes no network calls.
 

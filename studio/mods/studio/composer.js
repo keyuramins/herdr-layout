@@ -173,7 +173,7 @@ export class Composer {
     const v = this.voice;
     const state =
       v.phase === "listening"
-        ? { label: v.helper === "starting" ? "Starting mic…" : "Listening…", color: t.ansi1 }
+        ? { label: v.helper === "downloading" ? "Getting speech model…" : v.helper === "starting" ? "Starting mic…" : "Listening…", color: t.ansi1 }
         : v.phase === "preparing"
           ? { label: "Setting up dictation…", color: t.muted }
           : a?.status === "working"

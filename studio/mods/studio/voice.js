@@ -1,7 +1,8 @@
 // The composer's mic, on macOS. Herdr itself can't open the microphone (its
 // app bundle doesn't ask for it), so Studio brings a tiny helper app,
-// Studio Dictation (dictation/main.swift), that uses the Mac's built-in
-// speech recognition, the engine behind macOS Dictation. The helper is built
+// Studio Dictation (dictation/main.swift), that uses the newest speech
+// recognition the Mac has: Apple's SpeechTranscriber on macOS 26 and later,
+// else the older SFSpeechRecognizer. It picks by itself. The helper is built
 // from source with this Mac's own Swift compiler the first time the mic is
 // clicked, into mods/studio/.build/ (hidden: hot reload ignores it), and
 // macOS asks once for the microphone and speech recognition in its name.
@@ -9,7 +10,8 @@
 // Talking to it is files in .build/session/: it writes status, partial.txt
 // and final.txt; a "stop" file stops it. Words appear in the composer as
 // they're recognized, after whatever was typed already; nothing is sent
-// until you press Enter.
+// until you press Enter. Dictated words stay in the box: an empty or
+// shorter result never clears them.
 //
 // The mic shows only where this can work: macOS, with the helper built or a
 // Swift compiler to build it (Xcode or `xcode-select --install`).
@@ -17,9 +19,10 @@
 import { exec, appHome, readTextFile, writeTextFile, notify, window as win } from "herdr";
 import { MOD } from "./lib.js";
 
-const VERSION = "1"; // bump when dictation/ changes, so the helper is rebuilt
+const VERSION = "2"; // bump when dictation/ changes, so the helper is rebuilt
 const BUILD_TIMEOUT = 240e3;
 const START_TIMEOUT = 120e3; // a permission prompt can sit there a while
+const DOWNLOAD_TIMEOUT = 600e3; // the new engine's language model, first time only
 const DONE = ["done", "nothing", "denied-mic", "denied-speech", "unavailable", "no-microphone"];
 
 const PROBLEMS = {
@@ -161,18 +164,20 @@ export class Voice {
     const status = ((await readTextFile(`${session}/status`).catch(() => null)) ?? "").trim();
     const partial = await readTextFile(`${session}/partial.txt`).catch(() => null);
     let changed = false;
-    if (partial !== null && partial !== this.shown) {
+    // Only ever more words: an empty file (just rewritten) changes nothing.
+    if (partial !== null && partial.trim() && partial !== this.shown) {
       this.shown = partial;
       this.set(this.join(partial));
       changed = true;
     }
     if (status && status !== this.helper) {
-      this.helper = status; // "starting" while macOS asks for permission, then "listening"
+      this.helper = status; // starting (permission prompts), downloading (first use of the new engine), listening
       changed = true;
     }
     if (DONE.includes(status)) {
+      // What was heard stays in the box; only a longer final replaces it.
       const final = await readTextFile(`${session}/final.txt`).catch(() => null);
-      if (final !== null && final.trim()) this.set(this.join(final));
+      if (final !== null && final.trim() && final.trim().length >= (this.shown ?? "").trim().length) this.set(this.join(final));
       this.phase = "ready";
       const p = PROBLEMS[status];
       if (p) notify({ title: p[0], body: p[1], level: "warning", timeout: 8000 });
@@ -180,7 +185,8 @@ export class Voice {
       cx.notify();
       return;
     }
-    if ((status === "" || status === "starting") && Date.now() - this.since > START_TIMEOUT) {
+    const waited = Date.now() - this.since;
+    if (((status === "" || status === "starting") && waited > START_TIMEOUT) || (status === "downloading" && waited > DOWNLOAD_TIMEOUT)) {
       this.phase = "ready";
       changed = true;
     }
