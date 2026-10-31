@@ -1,6 +1,7 @@
 // The composer under the thread: a rounded box to write to the thread's
-// agent. Enter (or the round button) pastes the text into the agent's
-// terminal and presses Enter (`hc send`); while the agent works the button
+// agent, several lines tall, wrapping long lines. Enter (or the round
+// button) pastes the text into the agent's
+// terminal and presses Enter (`hc send`); Shift+Enter starts a new line; while the agent works the button
 // turns into Stop (`hc interrupt`). The row inside shows + (start another
 // thread), the agent with its icon, and what it's doing. Under the box:
 // Local or Worktree (where the thread's checkout is; opens the worktree
@@ -12,10 +13,21 @@
 // The layout's "studio.dictate" key (cmd-shift-m) does the same.
 
 import { div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { v_flex, h_flex, TextareaState, Textarea } from "gpui-base";
 import { run, theme, hc, notify, openOverlay, panes, nextCommand } from "herdr";
 import { icon, alpha, glyph, duration, activeSpace, activeTab, lead, threadAgent, machineOf, checkout } from "./lib.js";
 import { Voice } from "./voice.js";
+
+// The text before Enter put its new line in: the value now, less one "\n"
+// that the previous value didn't have (wherever the caret was).
+export function withoutNewEnter(before, now) {
+  if (typeof now !== "string") return before ?? "";
+  if (now.length !== (before ?? "").length + 1) return now.replace(/\n$/, "");
+  for (let i = 0; i < now.length; i++) {
+    if (now[i] !== before[i]) return now[i] === "\n" ? now.slice(0, i) + now.slice(i + 1) : now;
+  }
+  return now;
+}
 
 export class Composer {
   init(cx) {
@@ -23,13 +35,29 @@ export class Composer {
     this.focused = false;
     this.kind = null; // "local" | "worktree" | null (not git)
     this.kindKey = null;
-    this.input = InputState.new({ placeholder: "Ask for follow-up changes" });
+    this.input = TextareaState.new({ placeholder: "Ask for follow-up changes" });
+    this.input.set_soft_wrap(true);
     this.input.on("change", (_e, cx) => {
       const had = Boolean(this.text.trim());
+      this.before = this.text;
       this.text = this.input.value();
+      // Typing or deleting while the mic is on: dictation carries on from here.
+      this.voice?.edited(this.text);
       if (had !== Boolean(this.text.trim())) cx.notify();
     });
-    this.input.on("submit", (_e, cx) => this.send(cx));
+    // A multi-line box puts a new line in on Enter, then reports it with its
+    // modifiers: Shift+Enter keeps the new line, plain Enter sends what was
+    // there before it.
+    this.input.on("submit", (e, cx) => {
+      if (e?.shift) {
+        this.text = this.input.value();
+        return;
+      }
+      const now = this.input.value();
+      // If the new line already came through as an edit, compare with the one before it.
+      this.text = withoutNewEnter(this.text === now ? this.before ?? "" : this.text, now);
+      this.send(cx);
+    });
     this.input.on("focus", (_e, cx) => {
       this.focused = true;
       cx.notify();
@@ -209,7 +237,7 @@ export class Composer {
           .gap(6)
           .cursor_text()
           .on_click(() => this.input.focus())
-          .child(div().flex_1().min_h(0).child(Input.new(this.input).w_full().h(32).text_size(14.5).text_color(t.foreground)))
+          .child(div().flex_1().min_h(0).child(Textarea.new(this.input).w_full().h_full().text_size(14.5).text_color(t.foreground)))
           .child(
             h_flex()
               .h(30)

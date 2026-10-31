@@ -2,17 +2,28 @@
   "id": "root",
   "type": "row",
   "titlebar": "none",
-  "traffic_lights": [18, 18],
-  "theme": { "light": "studio-light", "dark": "studio-dark" },
+  "traffic_lights": [
+    18,
+    18
+  ],
+  "theme": {
+    "light": "studio-light",
+    "dark": "studio-dark"
+  },
   "preview": "layouts/studio.png",
   "background": "background",
-  "terminal_padding": [28, 14],
+  "terminal_padding": [
+    28,
+    14
+  ],
   "resizable": true,
   "children": [
     {
       "id": "sidebar",
       "type": "column",
-      "size": { "px": 300 },
+      "size": {
+        "px": 300
+      },
       "min": 220,
       "max": 440,
       "background": "chrome",
@@ -21,14 +32,26 @@
         {
           "id": "side-top",
           "type": "block",
-          "size": { "px": 52 },
+          "size": {
+            "px": 52
+          },
           "window_drag": true,
-          "content": { "mod": "studio", "props": { "part": "side-top" } }
+          "content": {
+            "mod": "studio",
+            "props": {
+              "part": "side-top"
+            }
+          }
         },
         {
           "id": "side",
           "type": "block",
-          "content": { "mod": "studio", "props": { "part": "sidebar" } }
+          "content": {
+            "mod": "studio",
+            "props": {
+              "part": "sidebar"
+            }
+          }
         }
       ]
     },
@@ -41,14 +64,24 @@
         {
           "id": "head",
           "type": "block",
-          "size": { "px": 52 },
+          "size": {
+            "px": 52
+          },
           "window_drag": true,
-          "content": { "mod": "studio", "props": { "part": "header" } }
+          "content": {
+            "mod": "studio",
+            "props": {
+              "part": "header"
+            }
+          }
         },
         {
           "id": "body",
           "type": "row",
-          "divider": { "width": 1, "color": "border" },
+          "divider": {
+            "width": 1,
+            "color": "border"
+          },
           "children": [
             {
               "id": "thread",
@@ -58,15 +91,24 @@
                 {
                   "id": "main",
                   "type": "block",
-                  "padding": [0, 10],
+                  "padding": [
+                    0,
+                    10
+                  ],
                   "content": {
                     "tab": "active",
                     "pane": {
                       "gap": 8,
                       "radius": 10,
                       "background": "background",
-                      "border": { "width": 1, "color": "border" },
-                      "focus": { "width": 1, "color": "input" },
+                      "border": {
+                        "width": 1,
+                        "color": "border"
+                      },
+                      "focus": {
+                        "width": 1,
+                        "color": "input"
+                      },
                       "lone": false
                     }
                   }
@@ -74,8 +116,15 @@
                 {
                   "id": "composer",
                   "type": "block",
-                  "size": { "px": 150 },
-                  "content": { "mod": "studio", "props": { "part": "composer" } }
+                  "size": {
+                    "px": 176
+                  },
+                  "content": {
+                    "mod": "studio",
+                    "props": {
+                      "part": "composer"
+                    }
+                  }
                 }
               ]
             },
@@ -83,7 +132,9 @@
               "id": "review",
               "type": "column",
               "hidden": true,
-              "size": { "px": 540 },
+              "size": {
+                "px": 540
+              },
               "min": 340,
               "max": 1100,
               "background": "background",
@@ -92,16 +143,35 @@
                 {
                   "id": "review-head",
                   "type": "block",
-                  "size": { "px": 44 },
-                  "content": { "mod": "studio", "props": { "part": "review-head" } }
+                  "size": {
+                    "px": 44
+                  },
+                  "content": {
+                    "mod": "studio",
+                    "props": {
+                      "part": "review-head"
+                    }
+                  }
                 },
                 {
                   "id": "review-body",
                   "type": "stack",
                   "active": "changes",
                   "children": [
-                    { "id": "changes", "type": "block", "content": { "mod": "changes" } },
-                    { "id": "files", "type": "block", "content": { "mod": "files" } }
+                    {
+                      "id": "changes",
+                      "type": "block",
+                      "content": {
+                        "mod": "changes"
+                      }
+                    },
+                    {
+                      "id": "files",
+                      "type": "block",
+                      "content": {
+                        "mod": "files"
+                      }
+                    }
                   ]
                 }
               ]

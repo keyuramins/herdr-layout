@@ -47,9 +47,10 @@ Left to right, at zoom 1:
   - **Thread**: the active tab's live terminals with terminal padding
     `[28, 14]` and 10px side padding. A lone pane has no frame. Split panes
     become cards with 10px radius, a `border` outline and `input` on focus.
-  - **Composer** (150px). A box up to 780px wide, centered, with 18px radius,
+  - **Composer** (176px). A box up to 780px wide, centered, with 18px radius,
     `popover` background and a 1px `border` (`input` when focused). Inside:
-    an input with the placeholder "Ask for follow-up changes" (14.5px), then
+    a multi-line, wrapping text box with the placeholder "Ask for follow-up
+    changes" (14.5px, about three lines before it scrolls), then
     a row with `+`, the agent chip (program icon and name), a status pill,
     on macOS a 30px mic (`mic`, `muted`; red on a 16% tint, gently pulsing,
     while listening), and a 30px round button: send (`arrow-up`, `solid`
@@ -103,7 +104,8 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
   - The diff counter toggles the review panel. The terminal toggle splits a
     shell under the agent the first time, then zooms the agent to hide or
     show it.
-- **The composer:** Enter or the send button runs `hc send <agent> <text>`,
+- **The composer:** Shift+Enter starts a new line. Enter or the send button
+  runs `hc send <agent> <text>`,
   which pastes the text and presses Enter. It goes to the focused terminal's
   agent, else the thread's agent, else its first terminal. `+` opens
   `new-menu`. The agent chip runs `agent.next`. Local or Worktree opens
@@ -127,7 +129,9 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     typed. A pause of 2 seconds, a second click, or 60 seconds ends it;
     10 seconds of silence at the start ends it with nothing added. Nothing is
     sent: Enter sends, as with typing. Dictated words stay in the box: an
-    empty or shorter result from the engine never clears them.
+    empty or shorter result from the engine never clears them. Typing or
+    deleting while it listens makes the box the new start: words heard
+    before the edit aren't added back.
   - A refused permission, a missing microphone or a failed build posts a
     toast saying where to fix it.
 - **Keys** (`keys.json`, section `layout:studio`): `cmd-j` or `ctrl-shift-j`
@@ -153,7 +157,7 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     - `head`, a block of 52px with `window_drag`.
     - `body`, a row with a 1px `border` divider:
       - `thread`, a column holding `main` (`{tab: "active"}`, frameless when
-        lone) and `composer` (150px).
+        lone) and `composer` (176px).
       - `review`, a column, hidden, 540px. It holds `review-head` (44px) and
         `review-body`, a stack with `changes` (mod `changes`) and `files`
         (mod `files`).
@@ -227,7 +231,13 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
   (`open`, not waited for). Studio polls the files instead.
 - Build output goes into a hidden `.build/` folder, because Herdr hot-reloads
   a mod whenever a file in its folder changes, except hidden ones.
-- The composer is one line. It doesn't report a busy agent, and it can't
+- The composer is a `TextareaState` + `Textarea` (gpui-base) with soft wrap.
+  A multi-line box inserts a new line on Enter before it reports "submit"
+  (scripts can't turn on submit-on-enter), so plain Enter sends the text
+  as it was before that new line, and Shift+Enter (`event.shift`) keeps it.
+  A key handler on a wrapper can't catch Enter first, because GPUI runs the
+  box's own key binding before wrapper key handlers.
+- The composer It doesn't report a busy agent, and it can't
   attach images.
 - Open can't reach folders on other machines. The app names on macOS are
   fixed: "Visual Studio Code", "Cursor", "Zed" and "Terminal".

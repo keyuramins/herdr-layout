@@ -77,6 +77,7 @@ export class Voice {
     if (this.phase === "listening") return this.stop();
     if (this.phase !== "ready") return;
     this.base = this.get();
+    this.skip = 0;
     cx.spawn(async (cx) => {
       const { build, app } = paths();
       const version = await readTextFile(`${build}/version`).catch(() => null);
@@ -115,11 +116,25 @@ export class Voice {
     writeTextFile(`${paths().session}/stop`, "stop\n", null).catch(() => null);
   }
 
-  // The words after what was typed before the mic went on.
+  // You typed or deleted while listening: what's in the box now is the new
+  // start, and words heard before the edit aren't added again.
+  edited(value) {
+    if (!this.busy || value === this.lastSet) return;
+    this.base = value;
+    this.skip = (this.shown ?? "").trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  // The box: what was there (typed, or kept after an edit), then the words
+  // heard since.
   join(words) {
     const base = (this.base ?? "").replace(/\s+$/, "");
-    const w = (words ?? "").trim();
+    const w = (words ?? "").trim().split(/\s+/).filter(Boolean).slice(this.skip ?? 0).join(" ");
     return base && w ? `${base} ${w}` : base || w;
+  }
+
+  put(text) {
+    this.lastSet = text;
+    this.set(text);
   }
 
   // Called every 250 ms by the composer; does nothing unless a build or a
@@ -168,7 +183,7 @@ export class Voice {
     // Only ever more words: an empty file (just rewritten) changes nothing.
     if (partial !== null && partial.trim() && partial !== this.shown) {
       this.shown = partial;
-      this.set(this.join(partial));
+      this.put(this.join(partial));
       changed = true;
     }
     if (status === "finishing" && this.helper !== "finishing") this.finishingSince = Date.now();
@@ -182,7 +197,7 @@ export class Voice {
     if (DONE.includes(status) || stuck) {
       // What was heard stays in the box; only a longer final replaces it.
       const final = await readTextFile(`${session}/final.txt`).catch(() => null);
-      if (final !== null && final.trim() && final.trim().length >= (this.shown ?? "").trim().length) this.set(this.join(final));
+      if (final !== null && final.trim() && final.trim().length >= (this.shown ?? "").trim().length) this.put(this.join(final));
       this.phase = "ready";
       const p = PROBLEMS[status];
       if (p) notify({ title: p[0], body: p[1], level: "warning", timeout: 8000 });
