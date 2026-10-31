@@ -3,6 +3,8 @@
     "cmd-j": "studio.terminal",
     "ctrl-shift-j": "studio.terminal",
     "cmd-shift-r": "studio.review",
-    "ctrl-shift-r": "studio.review"
+    "ctrl-shift-r": "studio.review",
+    "cmd-shift-m": "studio.dictate",
+    "ctrl-shift-m": "studio.dictate"
   }
 }

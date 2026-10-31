@@ -6,11 +6,16 @@
 // Local or Worktree (where the thread's checkout is; opens the worktree
 // dialog to hand the work to a new worktree), the machine if it isn't this
 // one, and the branch (opens the worktree list).
+//
+// On macOS the box also has a mic (voice.js): click it and talk, the words
+// appear in the box, click again or pause to stop, then Enter sends.
+// The layout's "studio.dictate" key (cmd-shift-m) does the same.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { run, theme, hc, notify, openOverlay, panes } from "herdr";
+import { run, theme, hc, notify, openOverlay, panes, nextCommand } from "herdr";
 import { icon, alpha, glyph, duration, activeSpace, activeTab, lead, threadAgent, machineOf, checkout } from "./lib.js";
+import { Voice } from "./voice.js";
 
 export class Composer {
   init(cx) {
@@ -39,6 +44,57 @@ export class Composer {
       const a = threadAgent();
       if (a?.status === "working" || ++this.ticks % 30 === 0) cx.notify();
     });
+
+    // The mic: words go into the box as they're heard.
+    this.voice = new Voice({
+      set: (text) => {
+        this.text = text;
+        this.input.set_value(text);
+      },
+      get: () => this.text,
+      focus: () => this.input.focus(),
+    });
+    this.voice.detect(cx);
+    cx.timer.every(250, (cx) => this.voice.poll(cx));
+    cx.spawn(async (cx) => {
+      for (;;) {
+        const c = await nextCommand();
+        if (c === "dictate" && this.voice.available) {
+          this.voice.toggle(cx);
+          cx.notify();
+        }
+      }
+    });
+  }
+
+  mic(t) {
+    const v = this.voice;
+    if (!v.available) return null;
+    const on = v.phase === "listening";
+    const tip = { ready: "Dictate (⌘⇧M)", preparing: "Setting up dictation, first time only…", listening: "Stop dictating", finishing: "Finishing…" }[v.phase];
+    return div()
+      .id("sc-mic")
+      .size(30)
+      .rounded(15)
+      .flex()
+      .items_center()
+      .justify_center()
+      .when(on, (el) => el.bg(alpha(t.ansi1, 0.16)).text_color(t.ansi1))
+      .when(!on, (el) => el.text_color(v.busy ? t.foreground : t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground)))
+      .cursor_pointer()
+      .tooltip(tip ?? "Dictate")
+      .on_click((_e, cx) => {
+        cx.stop_propagation();
+        v.toggle(cx);
+        cx.notify();
+      })
+      .child(
+        v.phase === "preparing" || v.phase === "finishing"
+          ? svg(icon("spinner")).size(15).spin(900)
+          : on
+            ? svg(icon("mic")).size(16).loop("opacity", { from: 0.45, to: 1, period: 1100 })
+            : svg(icon("mic")).size(16),
+      );
   }
 
   // The terminal the composer writes to: the thread's agent, else its lead terminal.
@@ -114,8 +170,13 @@ export class Composer {
     const working = a?.status === "working";
     const ready = Boolean(this.text.trim()) && Boolean(to);
     const name = a?.program?.name ?? p?.program?.name ?? "terminal";
+    const v = this.voice;
     const state =
-      a?.status === "working"
+      v.phase === "listening"
+        ? { label: v.helper === "starting" ? "Starting mic…" : "Listening…", color: t.ansi1 }
+        : v.phase === "preparing"
+          ? { label: "Setting up dictation…", color: t.muted }
+          : a?.status === "working"
         ? { label: `Working${tab?.working_since ? ` ${duration(tab.working_since)}` : ""}`, color: t.muted }
         : a?.status === "blocked"
           ? { label: "Awaiting approval", color: t.blocked }
@@ -178,11 +239,12 @@ export class Composer {
                     .bg(alpha(state.color, 0.12))
                     .text_size(12)
                     .text_color(state.color)
-                    .when(working, (el) => el.child(svg(icon("spinner")).size(12).spin(900)))
+                    .when(working && !v.busy, (el) => el.child(svg(icon("spinner")).size(12).spin(900)))
                     .child(state.label),
                 ),
               )
               .child(div().flex_1())
+              .child(this.mic(t) ?? div())
               .child(
                 working && !ready
                   ? div()
