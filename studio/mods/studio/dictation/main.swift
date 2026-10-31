@@ -203,6 +203,8 @@ final class ModernListener {
         ending = true
         timer?.invalidate()
         put("status", "finishing")
+        // Whatever the engine does next, report what was heard within 3 seconds.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { finish("done") }
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         input?.finish()

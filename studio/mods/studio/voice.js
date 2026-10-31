@@ -19,10 +19,11 @@
 import { exec, appHome, readTextFile, writeTextFile, notify, window as win } from "herdr";
 import { MOD } from "./lib.js";
 
-const VERSION = "2"; // bump when dictation/ changes, so the helper is rebuilt
+const VERSION = "3"; // bump when dictation/ changes, so the helper is rebuilt
 const BUILD_TIMEOUT = 240e3;
 const START_TIMEOUT = 120e3; // a permission prompt can sit there a while
 const DOWNLOAD_TIMEOUT = 600e3; // the new engine's language model, first time only
+const FINISH_TIMEOUT = 6e3; // the helper gives itself 3s; this is the backstop
 const DONE = ["done", "nothing", "denied-mic", "denied-speech", "unavailable", "no-microphone"];
 
 const PROBLEMS = {
@@ -170,11 +171,15 @@ export class Voice {
       this.set(this.join(partial));
       changed = true;
     }
+    if (status === "finishing" && this.helper !== "finishing") this.finishingSince = Date.now();
     if (status && status !== this.helper) {
       this.helper = status; // starting (permission prompts), downloading (first use of the new engine), listening
       changed = true;
     }
-    if (DONE.includes(status)) {
+    // A helper stuck finishing: end the session here, keeping what was heard.
+    const stuck = status === "finishing" && Date.now() - (this.finishingSince ?? Date.now()) > FINISH_TIMEOUT;
+    if (stuck) exec("pkill", ["-f", "StudioDictation.app/Contents/MacOS/StudioDictation"]).catch(() => null);
+    if (DONE.includes(status) || stuck) {
       // What was heard stays in the box; only a longer final replaces it.
       const final = await readTextFile(`${session}/final.txt`).catch(() => null);
       if (final !== null && final.trim() && final.trim().length >= (this.shown ?? "").trim().length) this.set(this.join(final));
