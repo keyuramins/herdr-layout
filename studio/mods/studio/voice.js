@@ -57,14 +57,30 @@ export class Voice {
     return ["preparing", "listening", "finishing"].includes(this.phase);
   }
 
-  detect(cx) {
-    if (win()?.platform !== "macos") {
-      this.phase = "off";
-      return;
-    }
+  // Is this a Mac, with the helper built or a compiler to build it? On a
+  // fresh start Herdr's window may not be up yet when this runs (window()
+  // empty), so ask the system instead, and if even that gives no answer,
+  // look again in a moment rather than hiding the mic for good.
+  detect(cx, tries = 0) {
     cx.spawn(async (cx) => {
+      let platform = win()?.platform;
+      if (!platform) {
+        const r = await exec("uname", ["-s"]).catch(() => null);
+        platform = r?.code === 0 ? (r.stdout.trim() === "Darwin" ? "macos" : "other") : null;
+      }
+      if (!platform) {
+        if (tries < 20) cx.timer.after(1500, (cx) => this.detect(cx, tries + 1));
+        return;
+      }
+      if (platform !== "macos") {
+        this.phase = "off";
+        cx.notify();
+        return;
+      }
       const { app } = paths();
-      const built = (await readTextFile(`${app}/Contents/Info.plist`).catch(() => null)) !== null;
+      const built =
+        (await readTextFile(`${app}/Contents/Info.plist`).catch(() => null)) !== null ||
+        (await exec("test", ["-x", `${app}/Contents/MacOS/StudioDictation`]).catch(() => ({ code: 1 }))).code === 0;
       const swift = built ? true : (await exec("xcrun", ["--find", "swiftc"]).catch(() => ({ code: 1 }))).code === 0;
       this.phase = built || swift ? "ready" : "off";
       if (!this.available) this.why = "Dictation needs Apple's Swift compiler: run xcode-select --install";
