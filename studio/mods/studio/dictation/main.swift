@@ -17,8 +17,10 @@
 //                no-microphone
 //   partial.txt  everything heard so far, rewritten as it changes
 //   final.txt    everything heard, once it's finished
-// It stops when a file named "stop" appears there, after 2s of silence once
-// you've spoken, after 10s with nothing said, or after 60s.
+// It stops when a file named "stop" appears there, after 3s with no new
+// words and no typing once you've spoken, after 10s with nothing said, or
+// after 60s. Studio touches a file named "active" there while you type or
+// delete in the box, which counts as activity: editing doesn't end it.
 //
 // Words are only ever added: a result that comes back empty or shorter
 // (engines do that as they settle, or start a new sentence after a pause)
@@ -33,7 +35,7 @@ import Speech
 
 let session = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : NSTemporaryDirectory(), isDirectory: true)
 let maxSeconds: TimeInterval = 60
-let silenceSeconds: TimeInterval = 2.0
+let silenceSeconds: TimeInterval = 3.0
 let quietStartSeconds: TimeInterval = 10
 
 // Words that come up when talking to a coding agent: a nudge for the
@@ -102,12 +104,20 @@ func finish(_ status: String) {
     exit(0)
 }
 
-// Stop when asked, after a pause, or when it's been too long.
+// When you last typed or deleted in the composer (Studio touches "active").
+func lastEdit() -> Date? {
+    let path = session.appendingPathComponent("active").path
+    return (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+}
+
+// Stop when asked, after a pause in both talking and typing, or when it's been too long.
 func shouldStop(started: Date) -> Bool {
     let now = Date()
     if FileManager.default.fileExists(atPath: session.appendingPathComponent("stop").path) { return true }
-    if words.heard && now.timeIntervalSince(words.lastChange) > silenceSeconds { return true }
-    if !words.heard && now.timeIntervalSince(started) > quietStartSeconds { return true }
+    let edit = lastEdit() ?? .distantPast
+    let activity = max(words.lastChange, edit)
+    if words.heard && now.timeIntervalSince(activity) > silenceSeconds { return true }
+    if !words.heard && now.timeIntervalSince(max(started, edit)) > quietStartSeconds { return true }
     return now.timeIntervalSince(started) > maxSeconds
 }
 

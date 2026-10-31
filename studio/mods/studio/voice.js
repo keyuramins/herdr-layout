@@ -20,7 +20,7 @@
 import { exec, appHome, readTextFile, writeTextFile, notify, window as win } from "herdr";
 import { MOD } from "./lib.js";
 
-const VERSION = "3"; // bump when dictation/ changes, so the helper is rebuilt
+const VERSION = "4"; // bump when dictation/ changes, so the helper is rebuilt
 const BUILD_TIMEOUT = 240e3;
 const START_TIMEOUT = 120e3; // a permission prompt can sit there a while
 const DOWNLOAD_TIMEOUT = 600e3; // the new engine's language model, first time only
@@ -151,6 +151,13 @@ export class Voice {
     if (!this.busy || (this.recent ?? []).includes(value)) return;
     this.base = value;
     this.skip = (this.shown ?? "").trim().split(/\s+/).filter(Boolean).length;
+    // Tell the helper you're busy in the box, so it doesn't take this for a
+    // pause and stop (at most twice a second).
+    const now = Date.now();
+    if (this.session && this.phase === "listening" && now - (this.touched ?? 0) > 500) {
+      this.touched = now;
+      exec("touch", [`${this.session}/active`]).catch(() => null);
+    }
   }
 
   // The box: what was there (typed, or kept after an edit), then the words

@@ -78,6 +78,8 @@ export class Composer {
       set: (text) => {
         this.text = text;
         this.input.set_value(text);
+        // The caret follows the words, so typing carries on after them.
+        this.input.set_selected_range({ start: text.length, end: text.length });
       },
       get: () => this.text,
       focus: () => this.input.focus(),

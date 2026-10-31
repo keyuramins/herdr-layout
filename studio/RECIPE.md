@@ -126,12 +126,15 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     name. The pill says "Starting mic…" until it's listening, then
     "Listening…".
   - Words appear in the box as they're recognized, after anything already
-    typed. A pause of 2 seconds, a second click, or 60 seconds ends it;
+    typed, with the caret moved to the end of them. A pause of 3 seconds in
+    both talking and typing, a second click, or 60 seconds ends it;
     10 seconds of silence at the start ends it with nothing added. Nothing is
     sent: Enter sends, as with typing. Dictated words stay in the box: an
     empty or shorter result from the engine never clears them. Typing or
     deleting while it listens makes the box the new start: words heard
-    before the edit aren't added back.
+    before the edit aren't added back. Editing also counts as activity
+    (Studio touches `active` in the session folder), so it doesn't end the
+    session.
   - Stop always stops: if the helper hasn't answered 6 seconds after a stop
     (or runs past 75 seconds), Studio ends it (`pkill`) and keeps the words.
   - A refused permission, a missing microphone or a failed build posts a
