@@ -26,6 +26,11 @@ const START_TIMEOUT = 120e3; // a permission prompt can sit there a while
 const DOWNLOAD_TIMEOUT = 600e3; // the new engine's language model, first time only
 const FINISH_TIMEOUT = 6e3; // the helper gives itself 3s; this is the backstop
 const LISTEN_TIMEOUT = 75e3; // the helper stops itself at 60s
+// How long a pause ends dictation. Studio keeps the helper going through
+// shorter ones (people stop to think) by touching "active", which the helper
+// counts like speech, and asks it to stop once a pause gets this long.
+const PAUSE = 8e3;
+const QUIET_START = 12e3; // nothing said at all
 const HELPER = "StudioDictation.app/Contents/MacOS/StudioDictation";
 const DONE = ["done", "nothing", "denied-mic", "denied-speech", "unavailable", "no-microphone"];
 
@@ -132,6 +137,8 @@ export class Voice {
     this.since = Date.now();
     this.stopAt = null;
     this.finishingSince = null;
+    this.lastWords = Date.now();
+    this.touched = 0;
     this.shown = null;
     this.helper = "starting";
     cx.notify();
@@ -154,6 +161,7 @@ export class Voice {
     // Tell the helper you're busy in the box, so it doesn't take this for a
     // pause and stop (at most twice a second).
     const now = Date.now();
+    this.editedAt = now;
     if (this.session && this.phase === "listening" && now - (this.touched ?? 0) > 500) {
       this.touched = now;
       exec("touch", [`${this.session}/active`]).catch(() => null);
@@ -216,6 +224,7 @@ export class Voice {
     const status = ((await readTextFile(`${session}/status`).catch(() => null)) ?? "").trim();
     const partial = await readTextFile(`${session}/partial.txt`).catch(() => null);
     let changed = false;
+    if (partial !== null && partial.trim() && partial !== this.shown) this.lastWords = Date.now();
     // Only ever more words: an empty file (just rewritten) changes nothing.
     if (partial !== null && partial.trim() && partial !== this.shown) {
       this.shown = partial;
@@ -236,6 +245,16 @@ export class Voice {
       (this.stopAt !== null && now - this.stopAt > FINISH_TIMEOUT) ||
       (status === "listening" && now - this.since > LISTEN_TIMEOUT);
     if (stuck) exec("pkill", ["-f", HELPER]).catch(() => null);
+    // Short pauses: keep it going. A long one, or nothing said at all: stop.
+    if (this.phase === "listening" && status === "listening") {
+      const t = Date.now();
+      const quiet = t - Math.max(this.lastWords, this.editedAt ?? 0);
+      if (quiet >= (this.shown ? PAUSE : QUIET_START)) this.stop();
+      else if (t - this.touched > 1000) {
+        this.touched = t;
+        exec("touch", [`${session}/active`]).catch(() => null);
+      }
+    }
     if (DONE.includes(status) || stuck) {
       // What was heard stays in the box; only a longer final replaces it.
       const final = await readTextFile(`${session}/final.txt`).catch(() => null);
