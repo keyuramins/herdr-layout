@@ -237,7 +237,7 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
   as it was before that new line, and Shift+Enter (`event.shift`) keeps it.
   A key handler on a wrapper can't catch Enter first, because GPUI runs the
   box's own key binding before wrapper key handlers.
-- The composer It doesn't report a busy agent, and it can't
+- The composer doesn't report a busy agent, and it can't
   attach images.
 - Open can't reach folders on other machines. The app names on macOS are
   fixed: "Visual Studio Code", "Cursor", "Zed" and "Terminal".
