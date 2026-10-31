@@ -200,9 +200,13 @@ final class ModernListener {
         try engine.start()
         started = Date()
         put("status", "listening")
-        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            guard let self = self, !self.ending, shouldStop(started: self.started) else { return }
-            Task { @MainActor in await self.end() }
+        // This async function doesn't run on the main thread, and a timer only
+        // fires on a thread whose run loop runs: schedule it on the main one.
+        DispatchQueue.main.async {
+            self.timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+                guard let self = self, !self.ending, shouldStop(started: self.started) else { return }
+                Task { @MainActor in await self.end() }
+            }
         }
     }
 

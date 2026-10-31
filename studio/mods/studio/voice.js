@@ -20,7 +20,7 @@
 import { exec, appHome, readTextFile, writeTextFile, notify, window as win } from "herdr";
 import { MOD } from "./lib.js";
 
-const VERSION = "4"; // bump when dictation/ changes, so the helper is rebuilt
+const VERSION = "5"; // bump when dictation/ changes, so the helper is rebuilt
 const BUILD_TIMEOUT = 240e3;
 const START_TIMEOUT = 120e3; // a permission prompt can sit there a while
 const DOWNLOAD_TIMEOUT = 600e3; // the new engine's language model, first time only
