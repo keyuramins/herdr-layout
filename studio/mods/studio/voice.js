@@ -7,7 +7,8 @@
 // clicked, into mods/studio/.build/ (hidden: hot reload ignores it), and
 // macOS asks once for the microphone and speech recognition in its name.
 //
-// Talking to it is files in .build/session/: it writes status, partial.txt
+// Talking to it is files in a folder of its own per session,
+// .build/sessions/<time>/: it writes status, partial.txt
 // and final.txt; a "stop" file stops it. Words appear in the composer as
 // they're recognized, after whatever was typed already; nothing is sent
 // until you press Enter. Dictated words stay in the box: an empty or
@@ -24,6 +25,8 @@ const BUILD_TIMEOUT = 240e3;
 const START_TIMEOUT = 120e3; // a permission prompt can sit there a while
 const DOWNLOAD_TIMEOUT = 600e3; // the new engine's language model, first time only
 const FINISH_TIMEOUT = 6e3; // the helper gives itself 3s; this is the backstop
+const LISTEN_TIMEOUT = 75e3; // the helper stops itself at 60s
+const HELPER = "StudioDictation.app/Contents/MacOS/StudioDictation";
 const DONE = ["done", "nothing", "denied-mic", "denied-speech", "unavailable", "no-microphone"];
 
 const PROBLEMS = {
@@ -36,7 +39,7 @@ const PROBLEMS = {
 const paths = () => {
   const mod = `${appHome()}/mods/${MOD}`;
   const build = `${mod}/.build`;
-  return { mod, build, app: `${build}/StudioDictation.app`, session: `${build}/session` };
+  return { mod, build, app: `${build}/StudioDictation.app`, sessions: `${build}/sessions` };
 };
 
 export class Voice {
@@ -109,9 +112,15 @@ export class Voice {
   }
 
   async listen(cx) {
-    const { app, session } = paths();
-    await exec("rm", ["-rf", session]).catch(() => null);
+    // One helper at a time: an earlier one still running would hold the
+    // microphone. And a fresh folder per session, so nothing an old helper
+    // writes can reach this one.
+    const { app, sessions } = paths();
+    await exec("pkill", ["-f", HELPER]).catch(() => null);
+    const session = `${sessions}/${Date.now()}`;
+    await exec("rm", ["-rf", sessions]).catch(() => null);
     await exec("mkdir", ["-p", session]).catch(() => null);
+    this.session = session;
     const r = await exec("open", ["-g", "-n", app, "--args", session]).catch((e) => ({ code: 1, stderr: String(e) }));
     if (r.code !== 0) {
       this.phase = "ready";
@@ -121,6 +130,8 @@ export class Voice {
     }
     this.phase = "listening";
     this.since = Date.now();
+    this.stopAt = null;
+    this.finishingSince = null;
     this.shown = null;
     this.helper = "starting";
     cx.notify();
@@ -129,13 +140,15 @@ export class Voice {
   stop() {
     if (this.phase !== "listening") return;
     this.phase = "finishing";
-    writeTextFile(`${paths().session}/stop`, "stop\n", null).catch(() => null);
+    this.stopAt = Date.now();
+    writeTextFile(`${this.session}/stop`, "stop\n", null).catch(() => null);
   }
 
   // You typed or deleted while listening: what's in the box now is the new
   // start, and words heard before the edit aren't added again.
   edited(value) {
-    if (!this.busy || value === this.lastSet) return;
+    // The box may report Studio's own updates a moment late: those aren't edits.
+    if (!this.busy || (this.recent ?? []).includes(value)) return;
     this.base = value;
     this.skip = (this.shown ?? "").trim().split(/\s+/).filter(Boolean).length;
   }
@@ -149,7 +162,7 @@ export class Voice {
   }
 
   put(text) {
-    this.lastSet = text;
+    this.recent = [...(this.recent ?? []).slice(-7), text];
     this.set(text);
   }
 
@@ -192,7 +205,7 @@ export class Voice {
   }
 
   async pollListen(cx) {
-    const { session } = paths();
+    const session = this.session;
     const status = ((await readTextFile(`${session}/status`).catch(() => null)) ?? "").trim();
     const partial = await readTextFile(`${session}/partial.txt`).catch(() => null);
     let changed = false;
@@ -208,8 +221,14 @@ export class Voice {
       changed = true;
     }
     // A helper stuck finishing: end the session here, keeping what was heard.
-    const stuck = status === "finishing" && Date.now() - (this.finishingSince ?? Date.now()) > FINISH_TIMEOUT;
-    if (stuck) exec("pkill", ["-f", "StudioDictation.app/Contents/MacOS/StudioDictation"]).catch(() => null);
+    // Stopped (by you or by itself) but no answer, or listening past its own
+    // limit: end it here.
+    const now = Date.now();
+    const stuck =
+      (status === "finishing" && now - (this.finishingSince ?? now) > FINISH_TIMEOUT) ||
+      (this.stopAt !== null && now - this.stopAt > FINISH_TIMEOUT) ||
+      (status === "listening" && now - this.since > LISTEN_TIMEOUT);
+    if (stuck) exec("pkill", ["-f", HELPER]).catch(() => null);
     if (DONE.includes(status) || stuck) {
       // What was heard stays in the box; only a longer final replaces it.
       const final = await readTextFile(`${session}/final.txt`).catch(() => null);

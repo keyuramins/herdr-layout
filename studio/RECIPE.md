@@ -132,6 +132,8 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     empty or shorter result from the engine never clears them. Typing or
     deleting while it listens makes the box the new start: words heard
     before the edit aren't added back.
+  - Stop always stops: if the helper hasn't answered 6 seconds after a stop
+    (or runs past 75 seconds), Studio ends it (`pkill`) and keeps the words.
   - A refused permission, a missing microphone or a failed build posts a
     toast saying where to fix it.
 - **Keys** (`keys.json`, section `layout:studio`): `cmd-j` or `ctrl-shift-j`
@@ -177,8 +179,9 @@ colors are working (gray `#a3a3a3` or `#8a8a8a`), blocked (green `#5fc77a` or
     `#available(macOS 26.0, *)`, so the same source builds and runs on older
     Macs with the older engine. It builds
     into `mods/studio/.build/StudioDictation.app`. Studio starts it with
-    `open -g -n <app> --args <session folder>` and they talk through files
-    there: the helper writes `status`, `partial.txt` and `final.txt`, and
+    `open -g -n <app> --args <session folder>`, a new folder per session
+    under `.build/sessions/`, after closing any helper still running
+    (`pkill -f`). They talk through files there: the helper writes `status`, `partial.txt` and `final.txt`, and
     Studio writes `stop`. `voice.js` polls them every 250 ms while a session
     runs, and does nothing otherwise.
 - **Shipped mods it uses:** `changes`, `files`, `new-menu`, `menu`, `picker`
